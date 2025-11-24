@@ -1,0 +1,471 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Vision Board - MTA (widget)</title>
+<style>
+  :root{
+    --bg:#000;
+    --card-bg: rgba(255,255,255,0.03);
+    --muted: #b7f8b6;
+    --accent: #4cfc0f;
+    --glass: rgba(255,255,255,0.03);
+    --maxw: 1400px;
+  }
+  html,body{height:100%;margin:0;background:var(--bg);font-family:Inter,Arial, sans-serif;color:#eafaf0}
+  .wrap{max-width:var(--maxw);margin:18px auto;padding:14px;box-sizing:border-box}
+  .toolbar{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:10px}
+  .btn{background:transparent;border:1px solid rgba(255,255,255,0.06);padding:8px 12px;border-radius:10px;color:var(--muted);cursor:pointer}
+  .btn.active{box-shadow:0 8px 30px rgba(76,252,15,0.06);border-color:var(--accent);color:var(--accent)}
+  .controls{margin-left:auto;display:flex;gap:8px;align-items:center}
+  .board {
+    width:100%;
+    height:65vh;
+    min-height:380px;
+    background: linear-gradient(180deg, rgba(255,255,255,0.01), rgba(255,255,255,0.006));
+    border-radius:14px;
+    border:1px solid rgba(255,255,255,0.03);
+    position:relative;
+    overflow:hidden;
+  }
+  /* SVG connections overlay */
+  svg.links { position:absolute; inset:0; width:100%; height:100%; pointer-events:none; z-index:5 }
+  /* nodes area */
+  .nodes { position:absolute; inset:0; z-index:10; }
+  .node {
+    position:absolute;
+    min-width:120px;
+    max-width:320px;
+    padding:10px;
+    background:var(--card-bg);
+    border-radius:12px;
+    border:1px solid rgba(255,255,255,0.04);
+    color:#fff;
+    box-shadow: 0 8px 30px rgba(0,0,0,0.6);
+    cursor:grab;
+    user-select:none;
+    display:flex;
+    gap:8px;
+    flex-direction:column;
+    align-items:flex-start;
+    z-index:20;
+  }
+  .node .title{font-weight:700;font-size:0.95rem;margin-bottom:6px}
+  .node .content{font-size:0.9rem;color: #dfffdc; word-break:break-word}
+  .node img{max-width:100%;border-radius:8px;display:block}
+  .node .node-actions{display:flex;gap:6px;margin-top:8px;width:100%}
+  .small{font-size:0.8rem;padding:6px 8px}
+  .input-inline{background:transparent;border:1px dashed rgba(255,255,255,0.06);padding:6px;border-radius:8px;color:var(--muted);outline:none}
+  /* UI hints */
+  .hint{font-size:0.85rem;color:#9fbfb2}
+  /* responsive */
+  @media (max-width:800px){
+    .board{height:58vh}
+    .toolbar{gap:6px}
+  }
+</style>
+</head>
+<body>
+<div class="wrap" role="application" aria-label="Vision board MTA">
+  <div class="toolbar" role="toolbar">
+    <button class="btn" id="addTextBtn">+ Texto</button>
+    <button class="btn" id="addImageBtn">+ Imagen</button>
+    <button class="btn" id="connectBtn">Conectar (flecha)</button>
+    <button class="btn" id="deleteModeBtn">Borrar nodo</button>
+    <label class="btn" title="Subir imagen">
+      <input id="fileInput" type="file" accept="image/*" style="display:none">
+      Subir imagen
+    </label>
+
+    <div class="controls">
+      <button class="btn" id="saveBtn">Guardar</button>
+      <button class="btn" id="loadBtn">Cargar</button>
+      <button class="btn" id="exportBtn">Export JSON</button>
+      <button class="btn" id="clearBtn">Limpiar</button>
+    </div>
+  </div>
+
+  <div class="board" id="board" tabindex="0" aria-label="Pizarra">
+    <svg class="links" id="linksSvg" xmlns="http://www.w3.org/2000/svg"></svg>
+    <div class="nodes" id="nodes"></div>
+  </div>
+
+  <div style="height:10px"></div>
+  <div class="hint">Arrastrá las tarjetas para ordenarlas. En modo "Conectar" hacé click en dos nodos para unirlos. Click en frase o imagen para editar. Click en el marco para deseleccionar.</div>
+</div>
+
+<script>
+/* Vision board básico: nodos arrastrables, conectar con SVG paths, añadir texto/imágenes, guardar/load */
+(() => {
+  const nodesEl = document.getElementById('nodes');
+  const svg = document.getElementById('linksSvg');
+  const board = document.getElementById('board');
+
+  let state = {
+    nodes: [], // {id,x,y,type,title,content,img}
+    links: []  // {from,to,id}
+  };
+  let mode = null; // "connect" | "delete" | null
+  let connectFrom = null;
+  let drag = {el:null,ox:0,oy:0,dx:0,dy:0};
+  let idCounter = 1;
+
+  function uid(prefix='n'){ return prefix + (idCounter++); }
+
+  // Utilities
+  function getRect(el){ return el.getBoundingClientRect(); }
+  function boardPos(clientX,clientY){
+    const r = board.getBoundingClientRect();
+    return {x: clientX - r.left, y: clientY - r.top};
+  }
+
+  // Create node DOM
+  function createNodeDOM(n){
+    const el = document.createElement('div');
+    el.className = 'node';
+    el.dataset.id = n.id;
+    el.style.left = (n.x)+'px';
+    el.style.top = (n.y)+'px';
+    el.setAttribute('role','group');
+
+    const title = document.createElement('div');
+    title.className='title';
+    title.contentEditable = true;
+    title.innerText = n.title || 'Meta...';
+    title.addEventListener('input', ()=> {
+      n.title = title.innerText;
+      saveStateToMemory(false);
+    });
+
+    const content = document.createElement('div');
+    content.className='content';
+    content.contentEditable = true;
+    content.innerText = n.content || '';
+    content.addEventListener('input', ()=> {
+      n.content = content.innerText;
+      saveStateToMemory(false);
+    });
+
+    el.appendChild(title);
+
+    if(n.img){
+      const img = document.createElement('img');
+      img.src = n.img;
+      img.alt = n.title || 'imagen';
+      el.appendChild(img);
+    }
+
+    el.appendChild(content);
+
+    const actions = document.createElement('div');
+    actions.className = 'node-actions';
+    const btnConnect = document.createElement('button');
+    btnConnect.className='small';
+    btnConnect.innerText='★';
+    btnConnect.title='Conectar (seleccionar modo conectar en toolbar)';
+    btnConnect.onclick = (e)=>{ e.stopPropagation(); setMode('connect'); flash(el); };
+
+    const btnDelete = document.createElement('button');
+    btnDelete.className='small';
+    btnDelete.innerText='🗑';
+    btnDelete.title='Eliminar';
+    btnDelete.onclick = e => { e.stopPropagation(); removeNode(n.id); };
+
+    actions.appendChild(btnConnect);
+    actions.appendChild(btnDelete);
+    el.appendChild(actions);
+
+    // Dragging
+    el.addEventListener('pointerdown', e=>{
+      e.preventDefault();
+      if(mode==='delete'){ removeNode(n.id); return; }
+      drag.el = el;
+      drag.ox = e.clientX;
+      drag.oy = e.clientY;
+      const r = el.getBoundingClientRect();
+      const br = board.getBoundingClientRect();
+      drag.dx = r.left - br.left - n.x;
+      drag.dy = r.top - br.top - n.y;
+      el.setPointerCapture(e.pointerId);
+      el.style.cursor='grabbing';
+    });
+
+    el.addEventListener('pointerup', e=>{
+      if(drag.el===el) {
+        el.releasePointerCapture(e.pointerId);
+        el.style.cursor='grab';
+        drag.el = null;
+        saveStateToMemory(false);
+      }
+    });
+
+    el.addEventListener('pointermove', e=>{
+      if(drag.el !== el) return;
+      const p = boardPos(e.clientX, e.clientY);
+      let nx = p.x - drag.dx;
+      let ny = p.y - drag.dy;
+      // constrain inside board
+      nx = Math.max(6, Math.min(board.clientWidth - el.offsetWidth - 6, nx));
+      ny = Math.max(6, Math.min(board.clientHeight - el.offsetHeight - 6, ny));
+      el.style.left = nx + 'px';
+      el.style.top = ny + 'px';
+      n.x = nx; n.y = ny;
+      redrawLinks();
+    });
+
+    // click handlers
+    el.addEventListener('click', e=>{
+      e.stopPropagation();
+      if(mode === 'connect'){
+        if(!connectFrom){ connectFrom = n.id; flash(el); }
+        else if(connectFrom === n.id){ connectFrom = null; redrawLinks(); }
+        else {
+          addLink(connectFrom, n.id);
+          connectFrom = null;
+        }
+      } else if(mode === 'delete'){
+        removeNode(n.id);
+      }
+    });
+
+    // double click to add image
+    el.addEventListener('dblclick', e=>{
+      e.stopPropagation();
+      openImagePromptForNode(n);
+    });
+
+    return el;
+  }
+
+  // add node data + DOM
+  function addNode(opts = {}){
+    const n = Object.assign({
+      id: uid('n'),
+      x: 30 + Math.random()*200,
+      y: 30 + Math.random()*200,
+      type: 'text',
+      title: opts.title || 'Nueva Meta',
+      content: opts.content || '',
+      img: opts.img || null
+    }, opts);
+    state.nodes.push(n);
+    const dom = createNodeDOM(n);
+    nodesEl.appendChild(dom);
+    saveStateToMemory(false);
+    return n;
+  }
+
+  function addImageNode(dataUrl){
+    addNode({type:'image', img:dataUrl, title:'Imagen'});
+  }
+
+  function removeNode(id){
+    state.nodes = state.nodes.filter(n=>n.id !== id);
+    state.links = state.links.filter(l=> l.from !== id && l.to !== id);
+    const el = nodesEl.querySelector(`[data-id="${id}"]`);
+    if(el) el.remove();
+    redrawLinks();
+    saveStateToMemory(false);
+  }
+
+  // links (as simple straight paths with arrowheads)
+  function addLink(a,b){
+    if(!a||!b) return;
+    // avoid duplicate
+    if(state.links.some(l=> (l.from===a && l.to===b) || (l.from===b && l.to===a))) return;
+    state.links.push({id: uid('l'), from:a, to:b});
+    redrawLinks();
+    saveStateToMemory(false);
+  }
+
+  function redrawLinks(){
+    // clear
+    while(svg.firstChild) svg.removeChild(svg.firstChild);
+    // svg defs for arrow
+    const defs = document.createElementNS('http://www.w3.org/2000/svg','defs');
+    const marker = document.createElementNS('http://www.w3.org/2000/svg','marker');
+    marker.setAttribute('id','arrow');
+    marker.setAttribute('markerWidth','10');
+    marker.setAttribute('markerHeight','10');
+    marker.setAttribute('refX','6');
+    marker.setAttribute('refY','5');
+    marker.setAttribute('orient','auto');
+    const pathMarker = document.createElementNS('http://www.w3.org/2000/svg','path');
+    pathMarker.setAttribute('d','M0,0 L10,5 L0,10 z');
+    pathMarker.setAttribute('fill','#aa00ff');
+    marker.appendChild(pathMarker);
+    defs.appendChild(marker);
+    svg.appendChild(defs);
+
+    state.links.forEach(l=>{
+      const n1 = state.nodes.find(n=>n.id===l.from);
+      const n2 = state.nodes.find(n=>n.id===l.to);
+      if(!n1||!n2) return;
+      const e1 = nodesEl.querySelector(`[data-id="${n1.id}"]`);
+      const e2 = nodesEl.querySelector(`[data-id="${n2.id}"]`);
+      if(!e1 || !e2) return;
+      const r1 = e1.getBoundingClientRect();
+      const r2 = e2.getBoundingClientRect();
+      const br = board.getBoundingClientRect();
+      const x1 = r1.left - br.left + r1.width/2;
+      const y1 = r1.top - br.top + r1.height/2;
+      const x2 = r2.left - br.left + r2.width/2;
+      const y2 = r2.top - br.top + r2.height/2;
+
+      // simple bezier
+      const dx = Math.abs(x2-x1);
+      const qx1 = x1 + dx*0.35;
+      const qy1 = y1;
+      const qx2 = x2 - dx*0.35;
+      const qy2 = y2;
+      const path = document.createElementNS('http://www.w3.org/2000/svg','path');
+      path.setAttribute('d', `M ${x1} ${y1} C ${qx1} ${qy1} ${qx2} ${qy2} ${x2} ${y2}`);
+      path.setAttribute('stroke', '#aa00ff');
+      path.setAttribute('stroke-width', '2.2');
+      path.setAttribute('fill','none');
+      path.setAttribute('marker-end','url(#arrow)');
+      path.style.filter = 'drop-shadow(0 0 8px rgba(170,0,255,0.14))';
+      svg.appendChild(path);
+    });
+  }
+
+  // upload image prompt for a specific node
+  function openImagePromptForNode(node){
+    const input = document.createElement('input');
+    input.type='file'; input.accept='image/*';
+    input.onchange = e=>{
+      const f = input.files[0];
+      if(!f) return;
+      const reader = new FileReader();
+      reader.onload = ev => {
+        node.img = ev.target.result;
+        // replace dom
+        const el = nodesEl.querySelector(`[data-id="${node.id}"]`);
+        if(el){
+          const existingImg = el.querySelector('img');
+          if(existingImg) existingImg.src = node.img;
+          else {
+            const img = document.createElement('img'); img.src=node.img; img.alt=node.title;
+            el.insertBefore(img, el.querySelector('.content'));
+          }
+        }
+        saveStateToMemory(false);
+      };
+      reader.readAsDataURL(f);
+    };
+    input.click();
+  }
+
+  // toolbar buttons
+  document.getElementById('addTextBtn').addEventListener('click', ()=> addNode());
+  document.getElementById('addImageBtn').addEventListener('click', ()=>{
+    // add sample image node using the provided local path as example
+    // replace with remote URL if hosting externally
+    addImageNode('/mnt/data/ebf604aa-bede-4aa8-84b8-73037916dd75.png');
+  });
+
+  // file input to upload custom image (top toolbar)
+  document.getElementById('fileInput').addEventListener('change', function(e){
+    const f = this.files[0];
+    if(!f) return;
+    const reader = new FileReader();
+    reader.onload = ev => addImageNode(ev.target.result);
+    reader.readAsDataURL(f);
+  });
+
+  document.getElementById('connectBtn').addEventListener('click', (e)=>{
+    toggleMode('connect', e.currentTarget);
+  });
+  document.getElementById('deleteModeBtn').addEventListener('click', (e)=>{
+    toggleMode('delete', e.currentTarget);
+  });
+
+  function toggleMode(m, btn){
+    if(mode === m){ setMode(null); btn.classList.remove('active'); return; }
+    setMode(m);
+    // visual on toolbar
+    document.querySelectorAll('.toolbar .btn').forEach(b=>b.classList.remove('active'));
+    if(btn) btn.classList.add('active');
+  }
+
+  function setMode(m){
+    mode = m;
+    if(!m){
+      connectFrom = null;
+      document.querySelectorAll('.btn').forEach(b=>b.classList.remove('active'));
+    }
+  }
+
+  // save & load
+  function saveStateToMemory(alertIt=true){
+    try{
+      localStorage.setItem('visionboard_v1', JSON.stringify(state));
+      if(alertIt) alert('Guardado en localStorage');
+    }catch(e){ console.warn(e); }
+  }
+  document.getElementById('saveBtn').addEventListener('click', ()=> saveStateToMemory(true));
+  document.getElementById('loadBtn').addEventListener('click', ()=>{
+    const raw = localStorage.getItem('visionboard_v1');
+    if(!raw){ alert('No hay guardado en localStorage'); return; }
+    try{
+      const parsed = JSON.parse(raw);
+      loadState(parsed);
+    }catch(e){ alert('error cargando'); }
+  });
+
+  document.getElementById('exportBtn').addEventListener('click', ()=>{
+    const data = JSON.stringify(state, null, 2);
+    const blob = new Blob([data], {type:'application/json'});
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a'); a.href = url; a.download = 'visionboard.json'; a.click();
+    URL.revokeObjectURL(url);
+  });
+
+  document.getElementById('clearBtn').addEventListener('click', ()=>{
+    if(!confirm('Borrar todo el tablero?')) return;
+    state = {nodes:[], links:[]};
+    nodesEl.innerHTML='';
+    redrawLinks();
+    localStorage.removeItem('visionboard_v1');
+  });
+
+  // load state
+  function loadState(s){
+    state = s;
+    nodesEl.innerHTML = '';
+    (state.nodes||[]).forEach(n=>{
+      const dom = createNodeDOM(n);
+      nodesEl.appendChild(dom);
+    });
+    redrawLinks();
+  }
+
+  // flash helper
+  function flash(el){
+    const old = el.style.boxShadow;
+    el.style.boxShadow = '0 0 28px rgba(170,0,255,0.18)';
+    setTimeout(()=> el.style.boxShadow = old, 500);
+  }
+
+  // click outside -> cancel connect
+  board.addEventListener('click', e=>{
+    connectFrom = null;
+    if(mode === 'connect'){
+      // keep mode active, but clear highlight
+      document.querySelectorAll('.node').forEach(n=> n.style.boxShadow = '');
+    }
+  });
+
+  // initial example nodes
+  addNode({x:20,y:20,title:'Meta principal',content:'Lograr autonomía financiera en 2 años'});
+  addNode({x:240,y:40,title:'Hito: Curso',content:'Completar curso psicotrading'});
+  addNode({x:120,y:220,title:'Rutina',content:'Meditación + checklist pre-market'});
+  saveStateToMemory(false);
+
+  // on resize redraw links
+  window.addEventListener('resize', ()=> redrawLinks());
+})();
+</script>
+</body>
+</html>
