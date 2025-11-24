@@ -3,468 +3,698 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width,initial-scale=1" />
-<title>Vision Board - MTA (widget)</title>
+<title>Vision Board — MTA (Neon)</title>
+
+<!-- Tipografía -->
+<link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;600&family=Inter:wght@300;400;600&display=swap" rel="stylesheet">
+
 <style>
   :root{
-    --bg:#000;
-    --card-bg: rgba(255,255,255,0.03);
-    --muted: #b7f8b6;
-    --accent: #4cfc0f;
-    --glass: rgba(255,255,255,0.03);
-    --maxw: 1400px;
+    --bg:#050505;
+    --panel:#070707;
+    --muted:#9fbfb2;
+    --neon-violet: #aa00ff;
+    --neon-green:  #4cfc0f;
+    --glass: rgba(255,255,255,0.02);
+    --card-radius: 14px;
   }
-  html,body{height:100%;margin:0;background:var(--bg);font-family:Inter,Arial, sans-serif;color:#eafaf0}
-  .wrap{max-width:var(--maxw);margin:18px auto;padding:14px;box-sizing:border-box}
-  .toolbar{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:10px}
-  .btn{background:transparent;border:1px solid rgba(255,255,255,0.06);padding:8px 12px;border-radius:10px;color:var(--muted);cursor:pointer}
-  .btn.active{box-shadow:0 8px 30px rgba(76,252,15,0.06);border-color:var(--accent);color:var(--accent)}
-  .controls{margin-left:auto;display:flex;gap:8px;align-items:center}
+
+  html,body{height:100%;margin:0;background:linear-gradient(180deg,#000,#050505);font-family:Inter,Arial,sans-serif;color:#eafaf0;overflow:hidden}
+  .wrap{box-sizing:border-box;max-width:1500px;margin:18px auto;padding:14px}
+  header{display:flex;gap:12px;align-items:center;margin-bottom:12px}
+  .logo{width:56px;height:56px;border-radius:12px;display:flex;align-items:center;justify-content:center;font-weight:800;color:#021013;background: linear-gradient(135deg, rgba(76,252,15,0.06), rgba(170,0,255,0.05));}
+  h1{margin:0;font-family:Cinzel,serif;color:var(--neon-green)}
+  p.lead{margin:4px 0 0;color:var(--muted);font-size:13px}
+
+  /* toolbar */
+  .toolbar{display:flex;gap:8px;align-items:center;margin:12px 0;flex-wrap:wrap}
+  .btn{background:transparent;border:1px solid rgba(255,255,255,0.04);padding:8px 12px;border-radius:10px;color:var(--muted);cursor:pointer}
+  .btn:hover{transform:translateY(-2px);box-shadow:0 8px 28px rgba(0,0,0,0.6)}
+  .btn.primary{border-color:var(--neon-violet);color:var(--neon-violet);box-shadow:0 8px 40px rgba(170,0,255,0.06)}
+  .toolbar .controls{margin-left:auto;display:flex;gap:8px;align-items:center}
+
+  /* board */
+  .board-wrap{display:flex;gap:12px}
   .board {
-    width:100%;
-    height:65vh;
-    min-height:380px;
-    background: linear-gradient(180deg, rgba(255,255,255,0.01), rgba(255,255,255,0.006));
-    border-radius:14px;
+    flex:1;
+    height:70vh;
+    min-height:420px;
+    background: linear-gradient(180deg, rgba(255,255,255,0.012), rgba(255,255,255,0.006));
+    border-radius:var(--card-radius);
     border:1px solid rgba(255,255,255,0.03);
     position:relative;
     overflow:hidden;
+    box-shadow: 0 40px 120px rgba(0,0,0,0.7);
   }
-  /* SVG connections overlay */
-  svg.links { position:absolute; inset:0; width:100%; height:100%; pointer-events:none; z-index:5 }
-  /* nodes area */
-  .nodes { position:absolute; inset:0; z-index:10; }
-  .node {
-    position:absolute;
-    min-width:120px;
-    max-width:320px;
-    padding:10px;
-    background:var(--card-bg);
+
+  /* Left control panel */
+  .side-panel{
+    width:320px;
+    max-width:32%;
+    min-width:240px;
+    background: linear-gradient(180deg, rgba(255,255,255,0.012), rgba(255,255,255,0.006));
     border-radius:12px;
-    border:1px solid rgba(255,255,255,0.04);
+    padding:12px;
+    box-sizing:border-box;
+    border:1px solid rgba(255,255,255,0.03);
+    display:flex;
+    flex-direction:column;
+    gap:10px;
+  }
+  .side-panel h3{margin:0;color:var(--muted);font-size:14px}
+  .control-row{display:flex;gap:8px;align-items:center}
+  .color-swatch{width:34px;height:34px;border-radius:8px;border:1px solid rgba(255,255,255,0.04);cursor:pointer}
+  .small{font-size:13px;color:var(--muted)}
+
+  /* SVG overlay for connections */
+  svg.links{position:absolute;inset:0;width:100%;height:100%;pointer-events:none;z-index:6;overflow:visible}
+
+  /* nodes */
+  .nodes {position:absolute;inset:0;z-index:8}
+  .node{
+    position:absolute;
+    min-width:140px;
+    max-width:360px;
+    background: rgba(12,12,12,0.65);
+    border-radius:12px;
+    padding:10px;
     color:#fff;
-    box-shadow: 0 8px 30px rgba(0,0,0,0.6);
+    border:1px solid rgba(255,255,255,0.04);
+    box-shadow: 0 12px 40px rgba(0,0,0,0.7);
     cursor:grab;
     user-select:none;
     display:flex;
-    gap:8px;
     flex-direction:column;
-    align-items:flex-start;
-    z-index:20;
+    gap:8px;
+    z-index:12;
+    touch-action:none;
+    transition:transform .12s;
   }
-  .node .title{font-weight:700;font-size:0.95rem;margin-bottom:6px}
-  .node .content{font-size:0.9rem;color: #dfffdc; word-break:break-word}
+  .node:active{cursor:grabbing}
+  .node .title{font-weight:700;font-size:1rem;color:var(--neon-green)}
+  .node .content{font-size:0.92rem;color:#dfffdc}
   .node img{max-width:100%;border-radius:8px;display:block}
-  .node .node-actions{display:flex;gap:6px;margin-top:8px;width:100%}
-  .small{font-size:0.8rem;padding:6px 8px}
-  .input-inline{background:transparent;border:1px dashed rgba(255,255,255,0.06);padding:6px;border-radius:8px;color:var(--muted);outline:none}
-  /* UI hints */
-  .hint{font-size:0.85rem;color:#9fbfb2}
-  /* responsive */
-  @media (max-width:800px){
-    .board{height:58vh}
-    .toolbar{gap:6px}
+  .node .actions{display:flex;gap:6px;justify-content:flex-end}
+  .tiny{font-size:12px;padding:6px;border-radius:8px;background:transparent;border:1px solid rgba(255,255,255,0.03);color:var(--muted);cursor:pointer}
+
+  /* neon glow wrapper for selection text */
+  .neon-wrap{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;z-index:7;pointer-events:none}
+  .neon-box{
+    pointer-events:none;
+    border-radius:20px;
+    padding:10px 18px;
+    color:transparent;
+    box-sizing:border-box;
+    max-width:90%;
   }
+  .neon-box::before{
+    content:"";
+    position:absolute;inset:0;border-radius:inherit;z-index:-1;
+    background: rgba(255,255,255,0.02);
+    box-shadow: 0 0 30px var(--neon-violet), 0 0 60px rgba(170,0,255,0.08), inset 0 0 12px rgba(170,0,255,0.06);
+    opacity:0;
+    transition:opacity .28s;
+  }
+  .neon-active .neon-box::before{opacity:1}
+
+  /* grid */
+  .grid {position:absolute;inset:0;pointer-events:none;z-index:3}
+  .grid .line{stroke:rgba(255,255,255,0.02);stroke-width:1}
+
+  /* full modal */
+  .modal{position:fixed;inset:0;display:none;align-items:center;justify-content:center;background:rgba(0,0,0,0.7);z-index:140}
+  .modal.open{display:flex}
+  .modal .card{background:#070707;border:1px solid rgba(255,255,255,0.03);padding:18px;border-radius:12px;color:var(--muted);max-width:760px;width:92%}
+
+  /* responsiveness */
+  @media (max-width:1000px){
+    .board-wrap{flex-direction:column}
+    .side-panel{width:100%;max-width:none;min-width:unset;order:2}
+    .board{order:1;height:56vh}
+  }
+
+  /* small helpers */
+  .muted{color:var(--muted);font-size:13px}
+  input[type="range"]{width:100%}
+  .flex{display:flex;gap:8px;align-items:center}
 </style>
 </head>
 <body>
-<div class="wrap" role="application" aria-label="Vision board MTA">
-  <div class="toolbar" role="toolbar">
-    <button class="btn" id="addTextBtn">+ Texto</button>
-    <button class="btn" id="addImageBtn">+ Imagen</button>
-    <button class="btn" id="connectBtn">Conectar (flecha)</button>
-    <button class="btn" id="deleteModeBtn">Borrar nodo</button>
-    <label class="btn" title="Subir imagen">
-      <input id="fileInput" type="file" accept="image/*" style="display:none">
+
+<div class="wrap" role="application" aria-label="Vision Board MTA">
+
+  <header>
+    <div class="logo">MTA</div>
+    <div>
+      <h1>Vision Board</h1>
+      <p class="lead">Pizarra interactiva — arrastrá, conectá, subí imágenes y guardá tu progreso.</p>
+    </div>
+  </header>
+
+  <div class="toolbar">
+    <button class="btn" id="addText">+ Texto</button>
+    <button class="btn" id="addImage">+ Imagen (ejemplo)</button>
+    <label class="btn">
+      <input type="file" id="uploadFile" accept="image/*" style="display:none">
       Subir imagen
     </label>
+    <button class="btn" id="connectMode">Conectar</button>
+    <button class="btn" id="deleteMode">Borrar</button>
+    <button class="btn" id="clearAll">Limpiar</button>
 
     <div class="controls">
-      <button class="btn" id="saveBtn">Guardar</button>
+      <button class="btn primary" id="saveBtn">Guardar</button>
       <button class="btn" id="loadBtn">Cargar</button>
-      <button class="btn" id="exportBtn">Export JSON</button>
-      <button class="btn" id="clearBtn">Limpiar</button>
+      <button class="btn" id="exportBtn">Exportar</button>
+      <button class="btn" id="importBtn">Importar</button>
     </div>
   </div>
 
-  <div class="board" id="board" tabindex="0" aria-label="Pizarra">
-    <svg class="links" id="linksSvg" xmlns="http://www.w3.org/2000/svg"></svg>
-    <div class="nodes" id="nodes"></div>
-  </div>
+  <div class="board-wrap">
+    <!-- board -->
+    <div class="board" id="board" tabindex="0" aria-label="Pizarra de visión">
+      <svg class="grid" id="gridSvg" width="100%" height="100%" xmlns="http://www.w3.org/2000/svg"></svg>
+      <svg class="links" id="linksSvg" xmlns="http://www.w3.org/2000/svg"></svg>
+      <div class="nodes" id="nodes"></div>
 
-  <div style="height:10px"></div>
-  <div class="hint">Arrastrá las tarjetas para ordenarlas. En modo "Conectar" hacé click en dos nodos para unirlos. Click en frase o imagen para editar. Click en el marco para deseleccionar.</div>
+      <div class="neon-wrap" id="neonWrap">
+        <div class="neon-box" id="neonBox"></div>
+      </div>
+    </div>
+
+    <!-- side panel -->
+    <aside class="side-panel" aria-label="Panel de configuración">
+      <h3>Personalización</h3>
+      <div class="control-row">
+        <div class="small">Color flechas</div>
+      </div>
+      <div class="control-row">
+        <div class="color-swatch" id="violetSw" style="background:var(--neon-violet)"></div>
+        <div class="color-swatch" id="greenSw" style="background:var(--neon-green)"></div>
+      </div>
+
+      <div class="control-row">
+        <div class="small">Mostrar grid</div>
+        <label style="margin-left:auto"><input type="checkbox" id="toggleGrid" checked></label>
+      </div>
+
+      <div class="control-row">
+        <div class="small">Snap a grid</div>
+        <label style="margin-left:auto"><input type="checkbox" id="toggleSnap"></label>
+      </div>
+
+      <div>
+        <div class="small">Tamaño nodos (mín-max)</div>
+        <input id="minW" type="range" min="100" max="220" value="140">
+        <input id="maxW" type="range" min="240" max="520" value="360">
+      </div>
+
+      <hr style="border:none;border-top:1px solid rgba(255,255,255,0.03)">
+
+      <div style="display:flex;gap:8px;align-items:center">
+        <button class="btn" id="undoBtn">Deshacer</button>
+        <button class="btn" id="redoBtn">Rehacer</button>
+      </div>
+
+      <div style="margin-top:auto">
+        <div class="muted">Tips:</div>
+        <ul style="margin:6px 0 0;padding-left:16px;color:var(--muted);font-size:13px">
+          <li>Dobleclic en nodo para subir imagen</li>
+          <li>Arrastrá para mover</li>
+          <li>Click conectar: luego clic en dos nodos</li>
+        </ul>
+      </div>
+    </aside>
+  </div>
+</div>
+
+<!-- modal import -->
+<div class="modal" id="importModal" role="dialog" aria-hidden="true">
+  <div class="card">
+    <h3>Importar JSON</h3>
+    <textarea id="importArea" style="width:100%;height:180px;background:#060606;color:#eafaf0;border-radius:8px;padding:8px;border:1px solid rgba(255,255,255,0.03)"></textarea>
+    <div style="margin-top:10px;display:flex;gap:8px;justify-content:flex-end">
+      <button class="btn" id="doImport">Importar</button>
+      <button class="btn" id="closeImport">Cerrar</button>
+    </div>
+  </div>
 </div>
 
 <script>
-/* Vision board básico: nodos arrastrables, conectar con SVG paths, añadir texto/imágenes, guardar/load */
-(() => {
-  const nodesEl = document.getElementById('nodes');
-  const svg = document.getElementById('linksSvg');
-  const board = document.getElementById('board');
+/* Vision Board MTA - funcional y adaptable
+   Features:
+   - nodos arrastrables (texto/imágen)
+   - conectar nodos con flechas (SVG bezier)
+   - guardar/load/export/import
+   - grid + snap
+   - panel de personalización (colores/tamaños)
+   - undo/redo básico
+*/
 
-  let state = {
-    nodes: [], // {id,x,y,type,title,content,img}
-    links: []  // {from,to,id}
-  };
-  let mode = null; // "connect" | "delete" | null
-  let connectFrom = null;
-  let drag = {el:null,ox:0,oy:0,dx:0,dy:0};
-  let idCounter = 1;
+/* ----------------- UTIL ----------------- */
+const $ = sel => document.querySelector(sel);
+const $$ = sel => Array.from(document.querySelectorAll(sel));
 
-  function uid(prefix='n'){ return prefix + (idCounter++); }
+/* ----------------- ELEMENTS ----------------- */
+const board = $('#board');
+const nodesEl = $('#nodes');
+const linksSvg = $('#linksSvg');
+const gridSvg = $('#gridSvg');
+const neonWrap = $('#neonWrap');
+const neonBox = $('#neonBox');
 
-  // Utilities
-  function getRect(el){ return el.getBoundingClientRect(); }
-  function boardPos(clientX,clientY){
-    const r = board.getBoundingClientRect();
-    return {x: clientX - r.left, y: clientY - r.top};
+const addTextBtn = $('#addText');
+const addImageBtn = $('#addImage');
+const uploadFile = $('#uploadFile');
+const connectModeBtn = $('#connectMode');
+const deleteModeBtn = $('#deleteMode');
+const clearAllBtn = $('#clearAll');
+const saveBtn = $('#saveBtn');
+const loadBtn = $('#loadBtn');
+const exportBtn = $('#exportBtn');
+const importBtn = $('#importBtn');
+const importModal = $('#importModal');
+const importArea = $('#importArea');
+const doImportBtn = $('#doImport');
+const closeImportBtn = $('#closeImport');
+
+const violetSw = $('#violetSw');
+const greenSw = $('#greenSw');
+const toggleGrid = $('#toggleGrid');
+const toggleSnap = $('#toggleSnap');
+const minWControl = $('#minW');
+const maxWControl = $('#maxW');
+const undoBtn = $('#undoBtn');
+const redoBtn = $('#redoBtn');
+
+/* ----------------- STATE ----------------- */
+let state = { nodes: [], links: [] };
+let historyStack = [], redoStack = [];
+let mode = null; // null | 'connect' | 'delete'
+let connectFrom = null;
+let dragging = null;
+let idc = 1;
+let config = {
+  linkColor: getComputedStyle(document.documentElement).getPropertyValue('--neon-violet').trim() || '#aa00ff',
+  neonActive: false,
+  snap: false,
+  gridSize: 24,
+  minW: parseInt(minWControl.value),
+  maxW: parseInt(maxWControl.value)
+};
+
+/* ----------------- HELPERS ----------------- */
+function uid(prefix='n'){ return prefix + (Date.now().toString(36).slice(-4)) + Math.floor(Math.random()*999).toString(36); }
+
+function saveHistory(){
+  historyStack.push(JSON.stringify(state));
+  if(historyStack.length>50) historyStack.shift();
+  redoStack = [];
+}
+function undo(){ if(historyStack.length>1){ redoStack.push(historyStack.pop()); const prev = historyStack[historyStack.length-1]; loadState(JSON.parse(prev), false); } }
+function redo(){ if(redoStack.length){ const v = redoStack.pop(); historyStack.push(v); loadState(JSON.parse(v), false); } }
+
+undoBtn.addEventListener('click', undo);
+redoBtn.addEventListener('click', redo);
+
+/* ----------------- GRID ----------------- */
+function drawGrid(){
+  while(gridSvg.firstChild) gridSvg.removeChild(gridSvg.firstChild);
+  if(!toggleGrid.checked) return;
+  const w = board.clientWidth, h = board.clientHeight;
+  const g = config.gridSize;
+  for(let x=0;x<w;x+=g){
+    const ln = document.createElementNS('http://www.w3.org/2000/svg','line');
+    ln.setAttribute('x1',x); ln.setAttribute('y1',0); ln.setAttribute('x2',x); ln.setAttribute('y2',h);
+    ln.setAttribute('class','line');
+    ln.setAttribute('stroke','rgba(255,255,255,0.02)');
+    gridSvg.appendChild(ln);
+  }
+  for(let y=0;y<h;y+=g){
+    const ln = document.createElementNS('http://www.w3.org/2000/svg','line');
+    ln.setAttribute('x1',0); ln.setAttribute('y1',y); ln.setAttribute('x2',w); ln.setAttribute('y2',y);
+    ln.setAttribute('class','line');
+    ln.setAttribute('stroke','rgba(255,255,255,0.02)');
+    gridSvg.appendChild(ln);
+  }
+}
+
+/* ----------------- RENDER LINKS ----------------- */
+function redrawLinks(){
+  while(linksSvg.firstChild) linksSvg.removeChild(linksSvg.firstChild);
+  if(!state.links) state.links=[];
+  // defs arrow
+  const defs = document.createElementNS('http://www.w3.org/2000/svg','defs');
+  const marker = document.createElementNS('http://www.w3.org/2000/svg','marker');
+  marker.setAttribute('id','arr'); marker.setAttribute('markerWidth','10'); marker.setAttribute('markerHeight','10');
+  marker.setAttribute('refX','6'); marker.setAttribute('refY','5'); marker.setAttribute('orient','auto');
+  const pathM = document.createElementNS('http://www.w3.org/2000/svg','path');
+  pathM.setAttribute('d','M0,0 L10,5 L0,10 z');
+  pathM.setAttribute('fill', config.linkColor);
+  marker.appendChild(pathM);
+  defs.appendChild(marker);
+  linksSvg.appendChild(defs);
+
+  state.links.forEach(l=>{
+    const n1 = state.nodes.find(n=>n.id===l.from);
+    const n2 = state.nodes.find(n=>n.id===l.to);
+    if(!n1 || !n2) return;
+    const el1 = nodesEl.querySelector(`[data-id="${n1.id}"]`);
+    const el2 = nodesEl.querySelector(`[data-id="${n2.id}"]`);
+    if(!el1 || !el2) return;
+    const r1 = el1.getBoundingClientRect(), r2 = el2.getBoundingClientRect();
+    const br = board.getBoundingClientRect();
+    const x1 = r1.left - br.left + r1.width/2;
+    const y1 = r1.top - br.top + r1.height/2;
+    const x2 = r2.left - br.left + r2.width/2;
+    const y2 = r2.top - br.top + r2.height/2;
+    const dx = Math.abs(x2-x1);
+    const cx1 = x1 + dx*0.28, cy1 = y1;
+    const cx2 = x2 - dx*0.28, cy2 = y2;
+    const path = document.createElementNS('http://www.w3.org/2000/svg','path');
+    path.setAttribute('d', `M ${x1} ${y1} C ${cx1} ${cy1} ${cx2} ${cy2} ${x2} ${y2}`);
+    path.setAttribute('stroke', config.linkColor);
+    path.setAttribute('stroke-width','2.6');
+    path.setAttribute('fill','none');
+    path.setAttribute('marker-end','url(#arr)');
+    path.style.filter = `drop-shadow(0 0 10px ${config.linkColor}20)`;
+    linksSvg.appendChild(path);
+  });
+}
+
+/* ----------------- NODE DOM ----------------- */
+function createNodeDOM(n){
+  const el = document.createElement('div');
+  el.className = 'node';
+  el.dataset.id = n.id;
+  el.style.left = (n.x)+'px';
+  el.style.top = (n.y)+'px';
+  el.style.minWidth = config.minW + 'px';
+  el.style.maxWidth = config.maxW + 'px';
+
+  // title content
+  const title = document.createElement('div'); title.className = 'title'; title.contentEditable = true; title.innerText = n.title || 'Nueva meta';
+  title.addEventListener('input', ()=> { n.title = title.innerText; scheduleSave(); });
+
+  const content = document.createElement('div'); content.className = 'content'; content.contentEditable = true; content.innerText = n.content || '';
+  content.addEventListener('input', ()=> { n.content = content.innerText; scheduleSave(); });
+
+  el.appendChild(title);
+
+  if(n.img){
+    const img = document.createElement('img');
+    img.src = n.img;
+    img.alt = n.title || 'imagen';
+    el.appendChild(img);
   }
 
-  // Create node DOM
-  function createNodeDOM(n){
-    const el = document.createElement('div');
-    el.className = 'node';
-    el.dataset.id = n.id;
-    el.style.left = (n.x)+'px';
-    el.style.top = (n.y)+'px';
-    el.setAttribute('role','group');
+  el.appendChild(content);
 
-    const title = document.createElement('div');
-    title.className='title';
-    title.contentEditable = true;
-    title.innerText = n.title || 'Meta...';
-    title.addEventListener('input', ()=> {
-      n.title = title.innerText;
-      saveStateToMemory(false);
-    });
+  const actions = document.createElement('div'); actions.className='actions';
+  const btnConnect = document.createElement('button'); btnConnect.className='tiny'; btnConnect.innerText='⇄'; btnConnect.title='Conectar rápido';
+  const btnDelete = document.createElement('button'); btnDelete.className='tiny'; btnDelete.innerText='🗑'; btnDelete.title='Eliminar';
+  actions.appendChild(btnConnect); actions.appendChild(btnDelete);
+  el.appendChild(actions);
 
-    const content = document.createElement('div');
-    content.className='content';
-    content.contentEditable = true;
-    content.innerText = n.content || '';
-    content.addEventListener('input', ()=> {
-      n.content = content.innerText;
-      saveStateToMemory(false);
-    });
+  // events
+  btnConnect.addEventListener('click', (e)=>{ e.stopPropagation(); toggleMode('connect'); connectFrom = n.id; highlightNode(n.id); });
+  btnDelete.addEventListener('click', (e)=>{ e.stopPropagation(); removeNode(n.id); });
 
-    el.appendChild(title);
-
-    if(n.img){
-      const img = document.createElement('img');
-      img.src = n.img;
-      img.alt = n.title || 'imagen';
-      el.appendChild(img);
+  // dragging (pointer)
+  el.addEventListener('pointerdown', (e)=>{
+    if(mode==='delete'){ removeNode(n.id); return; }
+    dragging = {el, id:n.id, startX:e.clientX, startY:e.clientY, ox: n.x, oy: n.y};
+    el.setPointerCapture(e.pointerId);
+    el.style.transition='none';
+  });
+  el.addEventListener('pointermove', (e)=>{
+    if(!dragging || dragging.id !== n.id) return;
+    const br = board.getBoundingClientRect();
+    let nx = dragging.ox + (e.clientX - dragging.startX);
+    let ny = dragging.oy + (e.clientY - dragging.startY);
+    // constrain
+    nx = Math.max(6, Math.min(board.clientWidth - el.offsetWidth - 6, nx));
+    ny = Math.max(6, Math.min(board.clientHeight - el.offsetHeight - 6, ny));
+    if(config.snap && toggleGrid.checked){
+      nx = Math.round(nx / config.gridSize) * config.gridSize;
+      ny = Math.round(ny / config.gridSize) * config.gridSize;
     }
-
-    el.appendChild(content);
-
-    const actions = document.createElement('div');
-    actions.className = 'node-actions';
-    const btnConnect = document.createElement('button');
-    btnConnect.className='small';
-    btnConnect.innerText='★';
-    btnConnect.title='Conectar (seleccionar modo conectar en toolbar)';
-    btnConnect.onclick = (e)=>{ e.stopPropagation(); setMode('connect'); flash(el); };
-
-    const btnDelete = document.createElement('button');
-    btnDelete.className='small';
-    btnDelete.innerText='🗑';
-    btnDelete.title='Eliminar';
-    btnDelete.onclick = e => { e.stopPropagation(); removeNode(n.id); };
-
-    actions.appendChild(btnConnect);
-    actions.appendChild(btnDelete);
-    el.appendChild(actions);
-
-    // Dragging
-    el.addEventListener('pointerdown', e=>{
-      e.preventDefault();
-      if(mode==='delete'){ removeNode(n.id); return; }
-      drag.el = el;
-      drag.ox = e.clientX;
-      drag.oy = e.clientY;
-      const r = el.getBoundingClientRect();
-      const br = board.getBoundingClientRect();
-      drag.dx = r.left - br.left - n.x;
-      drag.dy = r.top - br.top - n.y;
-      el.setPointerCapture(e.pointerId);
-      el.style.cursor='grabbing';
-    });
-
-    el.addEventListener('pointerup', e=>{
-      if(drag.el===el) {
-        el.releasePointerCapture(e.pointerId);
-        el.style.cursor='grab';
-        drag.el = null;
-        saveStateToMemory(false);
-      }
-    });
-
-    el.addEventListener('pointermove', e=>{
-      if(drag.el !== el) return;
-      const p = boardPos(e.clientX, e.clientY);
-      let nx = p.x - drag.dx;
-      let ny = p.y - drag.dy;
-      // constrain inside board
-      nx = Math.max(6, Math.min(board.clientWidth - el.offsetWidth - 6, nx));
-      ny = Math.max(6, Math.min(board.clientHeight - el.offsetHeight - 6, ny));
-      el.style.left = nx + 'px';
-      el.style.top = ny + 'px';
-      n.x = nx; n.y = ny;
-      redrawLinks();
-    });
-
-    // click handlers
-    el.addEventListener('click', e=>{
-      e.stopPropagation();
-      if(mode === 'connect'){
-        if(!connectFrom){ connectFrom = n.id; flash(el); }
-        else if(connectFrom === n.id){ connectFrom = null; redrawLinks(); }
-        else {
-          addLink(connectFrom, n.id);
-          connectFrom = null;
-        }
-      } else if(mode === 'delete'){
-        removeNode(n.id);
-      }
-    });
-
-    // double click to add image
-    el.addEventListener('dblclick', e=>{
-      e.stopPropagation();
-      openImagePromptForNode(n);
-    });
-
-    return el;
-  }
-
-  // add node data + DOM
-  function addNode(opts = {}){
-    const n = Object.assign({
-      id: uid('n'),
-      x: 30 + Math.random()*200,
-      y: 30 + Math.random()*200,
-      type: 'text',
-      title: opts.title || 'Nueva Meta',
-      content: opts.content || '',
-      img: opts.img || null
-    }, opts);
-    state.nodes.push(n);
-    const dom = createNodeDOM(n);
-    nodesEl.appendChild(dom);
-    saveStateToMemory(false);
-    return n;
-  }
-
-  function addImageNode(dataUrl){
-    addNode({type:'image', img:dataUrl, title:'Imagen'});
-  }
-
-  function removeNode(id){
-    state.nodes = state.nodes.filter(n=>n.id !== id);
-    state.links = state.links.filter(l=> l.from !== id && l.to !== id);
-    const el = nodesEl.querySelector(`[data-id="${id}"]`);
-    if(el) el.remove();
+    el.style.left = nx + 'px';
+    el.style.top = ny + 'px';
+    n.x = nx; n.y = ny;
     redrawLinks();
-    saveStateToMemory(false);
-  }
+  });
+  el.addEventListener('pointerup', (e)=>{
+    if(!dragging || dragging.id !== n.id) return;
+    dragging.el.releasePointerCapture(e.pointerId);
+    dragging = null;
+    el.style.transition='';
+    scheduleSave();
+  });
 
-  // links (as simple straight paths with arrowheads)
-  function addLink(a,b){
-    if(!a||!b) return;
-    // avoid duplicate
-    if(state.links.some(l=> (l.from===a && l.to===b) || (l.from===b && l.to===a))) return;
-    state.links.push({id: uid('l'), from:a, to:b});
-    redrawLinks();
-    saveStateToMemory(false);
-  }
+  // click behavior
+  el.addEventListener('click', (e)=>{
+    e.stopPropagation();
+    if(mode==='connect'){
+      if(!connectFrom){ connectFrom = n.id; highlightNode(n.id); }
+      else if(connectFrom===n.id){ connectFrom=null; clearHighlights(); }
+      else { addLink(connectFrom, n.id); connectFrom=null; clearHighlights(); }
+    }
+  });
 
-  function redrawLinks(){
-    // clear
-    while(svg.firstChild) svg.removeChild(svg.firstChild);
-    // svg defs for arrow
-    const defs = document.createElementNS('http://www.w3.org/2000/svg','defs');
-    const marker = document.createElementNS('http://www.w3.org/2000/svg','marker');
-    marker.setAttribute('id','arrow');
-    marker.setAttribute('markerWidth','10');
-    marker.setAttribute('markerHeight','10');
-    marker.setAttribute('refX','6');
-    marker.setAttribute('refY','5');
-    marker.setAttribute('orient','auto');
-    const pathMarker = document.createElementNS('http://www.w3.org/2000/svg','path');
-    pathMarker.setAttribute('d','M0,0 L10,5 L0,10 z');
-    pathMarker.setAttribute('fill','#aa00ff');
-    marker.appendChild(pathMarker);
-    defs.appendChild(marker);
-    svg.appendChild(defs);
-
-    state.links.forEach(l=>{
-      const n1 = state.nodes.find(n=>n.id===l.from);
-      const n2 = state.nodes.find(n=>n.id===l.to);
-      if(!n1||!n2) return;
-      const e1 = nodesEl.querySelector(`[data-id="${n1.id}"]`);
-      const e2 = nodesEl.querySelector(`[data-id="${n2.id}"]`);
-      if(!e1 || !e2) return;
-      const r1 = e1.getBoundingClientRect();
-      const r2 = e2.getBoundingClientRect();
-      const br = board.getBoundingClientRect();
-      const x1 = r1.left - br.left + r1.width/2;
-      const y1 = r1.top - br.top + r1.height/2;
-      const x2 = r2.left - br.left + r2.width/2;
-      const y2 = r2.top - br.top + r2.height/2;
-
-      // simple bezier
-      const dx = Math.abs(x2-x1);
-      const qx1 = x1 + dx*0.35;
-      const qy1 = y1;
-      const qx2 = x2 - dx*0.35;
-      const qy2 = y2;
-      const path = document.createElementNS('http://www.w3.org/2000/svg','path');
-      path.setAttribute('d', `M ${x1} ${y1} C ${qx1} ${qy1} ${qx2} ${qy2} ${x2} ${y2}`);
-      path.setAttribute('stroke', '#aa00ff');
-      path.setAttribute('stroke-width', '2.2');
-      path.setAttribute('fill','none');
-      path.setAttribute('marker-end','url(#arrow)');
-      path.style.filter = 'drop-shadow(0 0 8px rgba(170,0,255,0.14))';
-      svg.appendChild(path);
-    });
-  }
-
-  // upload image prompt for a specific node
-  function openImagePromptForNode(node){
-    const input = document.createElement('input');
-    input.type='file'; input.accept='image/*';
-    input.onchange = e=>{
+  // dblclick to upload for node
+  el.addEventListener('dblclick', (e)=>{
+    e.stopPropagation();
+    const input = document.createElement('input'); input.type='file'; input.accept='image/*';
+    input.onchange = (ev)=>{
       const f = input.files[0];
       if(!f) return;
       const reader = new FileReader();
-      reader.onload = ev => {
-        node.img = ev.target.result;
-        // replace dom
-        const el = nodesEl.querySelector(`[data-id="${node.id}"]`);
-        if(el){
-          const existingImg = el.querySelector('img');
-          if(existingImg) existingImg.src = node.img;
-          else {
-            const img = document.createElement('img'); img.src=node.img; img.alt=node.title;
-            el.insertBefore(img, el.querySelector('.content'));
-          }
+      reader.onload = ev2 => {
+        n.img = ev2.target.result;
+        const imgEl = el.querySelector('img');
+        if(imgEl) imgEl.src = n.img;
+        else {
+          const newImg = document.createElement('img'); newImg.src = n.img; newImg.alt = n.title || 'imagen';
+          el.insertBefore(newImg, el.querySelector('.content'));
         }
-        saveStateToMemory(false);
+        scheduleSave();
       };
       reader.readAsDataURL(f);
     };
     input.click();
+  });
+
+  return el;
+}
+
+/* ----------------- CRUD nodes ----------------- */
+function addNode(opts = {}){
+  const n = Object.assign({
+    id: uid('n'),
+    x: 40 + Math.random()*200,
+    y: 40 + Math.random()*120,
+    title: opts.title || 'Nueva Meta',
+    content: opts.content || '',
+    img: opts.img || null
+  }, opts);
+  state.nodes.push(n);
+  const dom = createNodeDOM(n);
+  nodesEl.appendChild(dom);
+  saveHistory();
+  scheduleSave();
+  redrawLinks();
+  return n;
+}
+
+function addImageNodeFromDataUrl(dataUrl){
+  addNode({title:'Imagen', img: dataUrl});
+}
+
+function removeNode(id){
+  state.nodes = state.nodes.filter(n => n.id !== id);
+  state.links = state.links.filter(l => l.from !== id && l.to !== id);
+  const el = nodesEl.querySelector(`[data-id="${id}"]`);
+  if(el) el.remove();
+  saveHistory();
+  scheduleSave();
+  redrawLinks();
+}
+
+function addLink(a,b){
+  if(a===b) return;
+  if(state.links.some(l=> (l.from===a && l.to===b) || (l.from===b && l.to===a))) return;
+  state.links.push({id: uid('l'), from:a, to:b});
+  saveHistory();
+  scheduleSave();
+  redrawLinks();
+}
+
+/* ----------------- UI helpers ----------------- */
+function clearHighlights(){ Array.from(nodesEl.children).forEach(n=> n.style.boxShadow=''); }
+function highlightNode(id){ clearHighlights(); const el = nodesEl.querySelector(`[data-id="${id}"]`); if(el) el.style.boxShadow = `0 0 28px ${config.linkColor}33`; }
+
+function toggleMode(m){
+  if(mode===m){ mode=null; connectFrom=null; clearHighlights(); return; }
+  mode = m; connectFrom=null;
+}
+
+/* ----------------- SAVE / LOAD / EXPORT ----------------- */
+function scheduleSave(){
+  // small debounce
+  if(window._saveTimer) clearTimeout(window._saveTimer);
+  window._saveTimer = setTimeout(()=> {
+    try{ localStorage.setItem('visionboard_v2', JSON.stringify(state)); }catch(e){ console.warn(e); }
+  }, 400);
+}
+
+function saveToLocal(){
+  try{ localStorage.setItem('visionboard_v2', JSON.stringify(state)); alert('Guardado local OK'); }catch(e){ alert('Error guardando'); }
+}
+function loadFromLocal(){
+  const raw = localStorage.getItem('visionboard_v2');
+  if(!raw){ alert('No hay guardado'); return; }
+  try{ const parsed = JSON.parse(raw); loadState(parsed, true); alert('Cargado OK'); }catch(e){ alert('Error al cargar'); }
+}
+
+function exportJSON(){
+  const data = JSON.stringify(state, null, 2);
+  const blob = new Blob([data], {type:'application/json'});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a'); a.href = url; a.download = 'visionboard.json'; a.click();
+  URL.revokeObjectURL(url);
+}
+
+function openImport(){
+  importModal.classList.add('open'); importModal.setAttribute('aria-hidden','false');
+  importArea.value = '';
+}
+function closeImport(){ importModal.classList.remove('open'); importModal.setAttribute('aria-hidden','true'); }
+
+function doImport(){
+  try{
+    const parsed = JSON.parse(importArea.value);
+    loadState(parsed, true);
+    closeImport();
+    alert('Importado OK');
+  }catch(e){ alert('JSON inválido'); }
+}
+
+importBtn.addEventListener('click', openImport);
+doImportBtn.addEventListener('click', doImport);
+closeImportBtn.addEventListener('click', closeImport);
+
+/* ----------------- LOAD / RENDER ----------------- */
+function loadState(s, pushHistory=true){
+  state = s || {nodes:[], links:[]};
+  // clear dom
+  nodesEl.innerHTML = '';
+  (state.nodes||[]).forEach(n=> {
+    const dom = createNodeDOM(n);
+    nodesEl.appendChild(dom);
+  });
+  redrawLinks();
+  drawGrid();
+  if(pushHistory) { saveHistory(); }
+}
+
+function initialState(){
+  // three starter nodes
+  addNode({x:30,y:40,title:'Meta Principal',content:'Lograr autonomía financiera en 2 años'});
+  addNode({x:260,y:60,title:'Hito: Cursos',content:'Completar formación de psicotrading'});
+  addNode({x:140,y:240,title:'Rutina',content:'Meditación + Checklist pre-market'});
+  saveHistory();
+}
+
+/* ----------------- EVENTS ----------------- */
+addTextBtn.addEventListener('click', ()=> addNode());
+addImageBtn.addEventListener('click', ()=> {
+  // sample image path - replace if hosted elsewhere
+  const sample = '/mnt/data/ebf604aa-bede-4aa8-84b8-73037916dd75.png';
+  addImageNodeFromDataUrl(sample);
+});
+uploadFile.addEventListener('change', (e)=>{
+  const f = e.target.files[0];
+  if(!f) return;
+  const reader = new FileReader();
+  reader.onload = (ev)=> addImageNodeFromDataUrl(ev.target.result);
+  reader.readAsDataURL(f);
+});
+
+connectModeBtn.addEventListener('click', ()=> toggleMode('connect'));
+deleteModeBtn.addEventListener('click', ()=> toggleMode('delete'));
+clearAllBtn.addEventListener('click', ()=>{
+  if(!confirm('Borrar todo?')) return;
+  state = {nodes:[], links:[]}; nodesEl.innerHTML=''; redrawLinks(); saveHistory(); scheduleSave();
+});
+
+saveBtn.addEventListener('click', saveToLocal);
+loadBtn.addEventListener('click', loadFromLocal);
+exportBtn.addEventListener('click', exportJSON);
+
+/* toolbar import via file */
+document.getElementById('uploadFile').addEventListener('change', ()=>{/* handled above */});
+
+/* link color swatches */
+violetSw.addEventListener('click', ()=> { config.linkColor = getComputedStyle(document.documentElement).getPropertyValue('--neon-violet').trim(); redrawLinks(); });
+greenSw.addEventListener('click', ()=> { config.linkColor = getComputedStyle(document.documentElement).getPropertyValue('--neon-green').trim(); redrawLinks(); });
+
+toggleGrid.addEventListener('change', drawGrid);
+toggleSnap.addEventListener('change', ()=> { config.snap = toggleSnap.checked; });
+
+minWControl.addEventListener('input', ()=> { config.minW = parseInt(minWControl.value); $$('.node').forEach(n=> n.style.minWidth = config.minW+'px'); });
+maxWControl.addEventListener('input', ()=> { config.maxW = parseInt(maxWControl.value); $$('.node').forEach(n=> n.style.maxWidth = config.maxW+'px'); });
+
+/* board click to cancel connect and hide neon box */
+board.addEventListener('click', (e)=> {
+  if(mode==='connect'){ connectFrom = null; clearHighlights(); }
+});
+
+/* window resize redraw */
+window.addEventListener('resize', () => { redrawLinks(); drawGrid(); });
+
+/* show neon box when phrase present */
+function showNeon(text, color){
+  neonBox.textContent = text || '';
+  document.documentElement.style.setProperty('--neon-violet', color || '#aa00ff');
+  document.querySelector('.neon-wrap').classList.add('neon-active');
+  setTimeout(()=> document.querySelector('.neon-wrap').classList.remove('neon-active'), 2200);
+}
+
+/* quick save throttle */
+let _saveThrottle = 0;
+function scheduleSaveImmediate(){
+  if(_saveThrottle) clearTimeout(_saveThrottle);
+  _saveThrottle = setTimeout(()=> {
+    try{ localStorage.setItem('visionboard_v2', JSON.stringify(state)); }catch(e){}
+  }, 300);
+}
+
+/* small helper to schedule save after user actions */
+let _scheduleTimer = null;
+function scheduleSave(){ if(_scheduleTimer) clearTimeout(_scheduleTimer); _scheduleTimer = setTimeout(()=> { try{ localStorage.setItem('visionboard_v2', JSON.stringify(state)); }catch(e){}; }, 500); }
+
+/* init */
+function boot(){
+  const raw = localStorage.getItem('visionboard_v2');
+  if(raw){
+    try{ loadState(JSON.parse(raw), true); showNeon('Tablero cargado (local)'); return; }catch(e){}
   }
+  initialState();
+  drawGrid();
+  saveHistory();
+}
+boot();
 
-  // toolbar buttons
-  document.getElementById('addTextBtn').addEventListener('click', ()=> addNode());
-  document.getElementById('addImageBtn').addEventListener('click', ()=>{
-    // add sample image node using the provided local path as example
-    // replace with remote URL if hosting externally
-    addImageNode('/mnt/data/ebf604aa-bede-4aa8-84b8-73037916dd75.png');
-  });
+/* expose some helpers to console for debugging */
+window.__vision = { state, addNode, saveToLocal, loadFromLocal, exportJSON, loadState };
 
-  // file input to upload custom image (top toolbar)
-  document.getElementById('fileInput').addEventListener('change', function(e){
-    const f = this.files[0];
-    if(!f) return;
-    const reader = new FileReader();
-    reader.onload = ev => addImageNode(ev.target.result);
-    reader.readAsDataURL(f);
-  });
-
-  document.getElementById('connectBtn').addEventListener('click', (e)=>{
-    toggleMode('connect', e.currentTarget);
-  });
-  document.getElementById('deleteModeBtn').addEventListener('click', (e)=>{
-    toggleMode('delete', e.currentTarget);
-  });
-
-  function toggleMode(m, btn){
-    if(mode === m){ setMode(null); btn.classList.remove('active'); return; }
-    setMode(m);
-    // visual on toolbar
-    document.querySelectorAll('.toolbar .btn').forEach(b=>b.classList.remove('active'));
-    if(btn) btn.classList.add('active');
-  }
-
-  function setMode(m){
-    mode = m;
-    if(!m){
-      connectFrom = null;
-      document.querySelectorAll('.btn').forEach(b=>b.classList.remove('active'));
-    }
-  }
-
-  // save & load
-  function saveStateToMemory(alertIt=true){
-    try{
-      localStorage.setItem('visionboard_v1', JSON.stringify(state));
-      if(alertIt) alert('Guardado en localStorage');
-    }catch(e){ console.warn(e); }
-  }
-  document.getElementById('saveBtn').addEventListener('click', ()=> saveStateToMemory(true));
-  document.getElementById('loadBtn').addEventListener('click', ()=>{
-    const raw = localStorage.getItem('visionboard_v1');
-    if(!raw){ alert('No hay guardado en localStorage'); return; }
-    try{
-      const parsed = JSON.parse(raw);
-      loadState(parsed);
-    }catch(e){ alert('error cargando'); }
-  });
-
-  document.getElementById('exportBtn').addEventListener('click', ()=>{
-    const data = JSON.stringify(state, null, 2);
-    const blob = new Blob([data], {type:'application/json'});
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a'); a.href = url; a.download = 'visionboard.json'; a.click();
-    URL.revokeObjectURL(url);
-  });
-
-  document.getElementById('clearBtn').addEventListener('click', ()=>{
-    if(!confirm('Borrar todo el tablero?')) return;
-    state = {nodes:[], links:[]};
-    nodesEl.innerHTML='';
+/* periodically redraw links for fluid bezier movement */
+(function animate(){
+  requestAnimationFrame(()=>{
     redrawLinks();
-    localStorage.removeItem('visionboard_v1');
+    requestAnimationFrame(animate);
   });
-
-  // load state
-  function loadState(s){
-    state = s;
-    nodesEl.innerHTML = '';
-    (state.nodes||[]).forEach(n=>{
-      const dom = createNodeDOM(n);
-      nodesEl.appendChild(dom);
-    });
-    redrawLinks();
-  }
-
-  // flash helper
-  function flash(el){
-    const old = el.style.boxShadow;
-    el.style.boxShadow = '0 0 28px rgba(170,0,255,0.18)';
-    setTimeout(()=> el.style.boxShadow = old, 500);
-  }
-
-  // click outside -> cancel connect
-  board.addEventListener('click', e=>{
-    connectFrom = null;
-    if(mode === 'connect'){
-      // keep mode active, but clear highlight
-      document.querySelectorAll('.node').forEach(n=> n.style.boxShadow = '');
-    }
-  });
-
-  // initial example nodes
-  addNode({x:20,y:20,title:'Meta principal',content:'Lograr autonomía financiera en 2 años'});
-  addNode({x:240,y:40,title:'Hito: Curso',content:'Completar curso psicotrading'});
-  addNode({x:120,y:220,title:'Rutina',content:'Meditación + checklist pre-market'});
-  saveStateToMemory(false);
-
-  // on resize redraw links
-  window.addEventListener('resize', ()=> redrawLinks());
 })();
 </script>
 </body>
