@@ -3,6 +3,7 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width,initial-scale=1" />
+<meta http-equiv="Content-Security-Policy" content="script-src 'unsafe-eval' 'unsafe-inline' 'self' data: https:" />
 <title>Vision Board — MTA (Neon) v2</title>
 
 <!-- Tipografía -->
@@ -834,8 +835,9 @@ function exportJSON(){
 /* Export board as PNG transparent with watermark behind */
 async function exportBoardAsPNG(){
   // watermark image (you provided Imgur)
-  const watermarkUrl = 'https://imgur.com/5kcUsNT';
-  const imgW = await loadImage(watermarkUrl).catch(()=>null);
+  const watermarkUrl = 'https://i.ibb.co/43sQxpN/5kc-Us-NT-Imgur.png';
+  const imgW = await loadImage(watermarkUrl).catch((e)=> { console.error('Failed to load watermark:', e); return null; });
+  console.log('Watermark loaded:', imgW);
 
   // capture board inner (nodes + links) with transparent background
   const options = { backgroundColor: null, useCORS: true, scale: Math.min(2, window.devicePixelRatio || 1) };
@@ -848,10 +850,18 @@ async function exportBoardAsPNG(){
   final.width = w; final.height = h;
   const ctx = final.getContext('2d');
 
-  // draw watermark faint behind
+  // fill with black background
+  ctx.fillStyle = 'black';
+  ctx.fillRect(0, 0, w, h);
+
+  // draw watermark centered, original size
   if(imgW){
-    ctx.globalAlpha = 0.12;
-    ctx.drawImage(imgW, 0, 0, w, h);
+    const imgW_w = imgW.width;
+    const imgW_h = imgW.height;
+    const x = (w - imgW_w) / 2;
+    const y = (h - imgW_h) / 2;
+    ctx.globalAlpha = 0.3;
+    ctx.drawImage(imgW, x, y);
     ctx.globalAlpha = 1;
   }
 
